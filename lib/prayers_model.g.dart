@@ -20,19 +20,22 @@ class PrayerAdapter extends TypeAdapter<Prayer> {
       fields[0] as String,
       fields[1] as int,
       fields[2] == null ? 0 : fields[2] as int,
+      fields[3] == null ? 'ME' : fields[3] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, Prayer obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
       ..write(obj.total)
       ..writeByte(2)
-      ..write(obj.finished);
+      ..write(obj.finished)
+      ..writeByte(3)
+      ..write(obj.whichPerson);
   }
 
   @override

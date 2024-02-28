@@ -13,7 +13,10 @@ class Prayer {
   @HiveField(2, defaultValue: 0)
   int finished;
 
-  Prayer(this.name, this.total, this.finished);
+  @HiveField(3, defaultValue: 'ME')
+  String whichPerson;
+
+  Prayer(this.name, this.total, this.finished, this.whichPerson);
 
   String toString() => "$name - ($total/$finished)";
 }

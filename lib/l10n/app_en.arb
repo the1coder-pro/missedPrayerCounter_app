@@ -1,0 +1,130 @@
+{
+    "title": "Counter",
+    "settings": "Settings",
+    "appearance": "Appearance",
+    "fasting": "Fasting",
+    "prayers": "Prayers",
+    "darkMode": "Dark Theme",
+    "themes": "Themes",
+    "fontSize": "Font Size",
+    "language": "Language",
+    "personSelector": "Choose Person",
+    "prayersTitle": "Missed Prayers Counter",
+    "fastingTitle": "Missed Fast Counter",
+    "settingsBtn": "Setup",
+    "numberOfDays": "Days",
+    "numberOfMonths": "Months",
+    "numberOfYears": "Years",
+    "calculateBtn": "Calculate",
+    "doneBtn": "Done",
+    "morning": "Fajr",
+    "noon": "Zuhr",
+    "afternoon": "Asr",
+    "sunset": "Maghrib",
+    "night": "Isha",
+    "titleDoneMessage": "Completed prayer?",
+    "contentDoneMessage": "Are you sure you performed the {prayer} prayer?",
+    "@contentDoneMessage":{
+      "placeholders": {
+        "prayer": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "titleNotDoneMessage": "Incomplete prayer?",
+    "contentNotDoneMessage": "Are you sure you did not perform the prayer {prayer}?",
+    "@contentNotDoneMessage":{
+      "placeholders": {
+        "prayer": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "titleDoneMessageFasting": "Completed fasting?",
+    "contentDoneMessageFasting": "Are you sure you have completed {fastingType} fast?",
+    "@contentDoneMessageFasting":{
+      "placeholders": {
+        "fastingType": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "titleNotDoneMessageFasting": "Incomplete fasting?",
+    "contentNotDoneMessageFasting": "Are you sure you did not finish {fastingType} fast?",
+    "@contentNotDoneMessageFasting":{
+      "placeholders": {
+        "fastingType": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "titleDeletePersonMessage": "Delete {person}?",
+    "@titleDeletePersonMessage":{
+      "placeholders": {
+        "person": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "contentDeletePersonMessage": "Are you sure you want to delete this person?",
+    "yes": "YES",
+    "no": "NO",
+    "cancel": "CANCEL",
+    "add": "ADD",
+    "ok": "OK",
+    "delete": "DELETE",
+    "newPersonTitle": "Add New Person",
+    "personName": "Name",
+    "errorAddingPersonMessage": "You cannot add a person with an existing name",
+    "errorAddingPersonTitle": "Not possible",
+    "noPeople": "There's No names to choose from.",
+    "alqada": "AlQada",
+    "alnadhar": "AlNadhar",
+    "alkafaara": "AlKafaara",
+    "finishMessage": "Good Job",
+    "finishMessage2": "May God accept your good deeds",
+    "fastingTypes": "{fastingType} Fasting",
+    "@fastingTypes": {
+      "placeholders": {
+        "fastingType": {
+          "type": "String"
+        }
+      }
+    },
+    "calculateFastingBtn": "Calculate {fastingType} Fasting",
+    "@calculateFastingBtn": {
+      "placeholders": {
+        "fastingType": {
+          "type": "String"
+        }
+      }
+    },
+    "successSnackBarMessage": "Successfully added {name} counter for ({person})",
+    "@successSnackBarMessage": {
+      "placeholders": {
+        "person": {
+          "type": "String"
+        },
+        "name": {
+          "type": "String"
+        }
+      }
+    },
+    "successSnackBarMessagePrayers": "Successfully added prayer counters for ({person})",
+    "@successSnackBarMessagePrayers": {
+      "placeholders": {
+        "person": {
+          "type": "String"
+        }
+      }
+    },
+    "clearTitle": "Delete Everything?",
+    "clearContent": "Are you sure you want to delete everything?"
+    
+
+  }

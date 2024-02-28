@@ -1,18 +1,22 @@
 import 'dart:ui';
-
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:prayer_counter/color_schemes.g.dart';
 import 'package:prayer_counter/prayers_model.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import 'settings.dart';
 
 String boxName = 'prayersBox';
 String boxName2 = 'fastingBox';
 String settingsBox = 'settings';
+String peopleBox = 'peopleBox';
 
 void main() async {
   await Hive.initFlutter();
@@ -20,6 +24,7 @@ void main() async {
   await Hive.openBox<Prayer>(boxName);
   await Hive.openBox<Prayer>(boxName2);
   await Hive.openBox(settingsBox);
+  await Hive.openBox(peopleBox);
 
   runApp(const MyApp());
 }
@@ -57,6 +62,8 @@ class _MyAppState extends State<MyApp> {
         await themeChangeProvider.preference.getFontSize();
     themeChangeProvider.darkTheme =
         await themeChangeProvider.preference.getTheme();
+    themeChangeProvider.language =
+        await themeChangeProvider.preference.getUILanguage();
   }
 
   void getCurrentColorTheme() async {
@@ -73,7 +80,6 @@ class _MyAppState extends State<MyApp> {
         return darkMode ? baigeDarkColorScheme : baigeLightColorScheme;
       case "Red":
         return darkMode ? redDarkColorScheme : redLightColorScheme;
-
       case "Grey":
         return darkMode ? greyDarkColorScheme : greyLightColorScheme;
       case "Green":
@@ -101,6 +107,17 @@ class _MyAppState extends State<MyApp> {
               builder: (BuildContext context, value, change) => MaterialApp(
                 title: 'عداد القضاء',
                 debugShowCheckedModeBanner: false,
+                localizationsDelegates: [
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  AppLocalizations.delegate, // Add this line
+                ],
+                supportedLocales: [
+                  Locale('en'),
+                  Locale('ar'),
+                ],
+                locale: Locale(themeChangeProvider.language),
                 theme: ThemeData(
                   textTheme: textTheme,
                   colorScheme: colorSchemeChooser(
@@ -122,10 +139,21 @@ class _MyAppState extends State<MyApp> {
                     : ThemeMode.light,
                 initialRoute: "/",
                 routes: {
-                  "/": (context) => const Directionality(
-                      textDirection: TextDirection.rtl, child: MyHomePage()),
-                  "/settings": (context) => const Directionality(
-                      textDirection: TextDirection.rtl, child: SettingsPage()),
+                  "/": (context) => Directionality(
+                      textDirection: themeChangeProvider.language == 'ar'
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      child: MyHomePage()),
+                  "/people": (context) => Directionality(
+                      textDirection: themeChangeProvider.language == 'ar'
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      child: PeoplePage()),
+                  "/settings": (context) => Directionality(
+                      textDirection: themeChangeProvider.language == 'ar'
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      child: SettingsPage()),
                 },
               ),
             ),
@@ -139,6 +167,199 @@ class _MyAppState extends State<MyApp> {
 extension ColorToHex on Color {
   String get toHex {
     return "#${value.toRadixString(16).substring(2)}";
+  }
+}
+
+class PeoplePage extends StatefulWidget {
+  const PeoplePage({super.key});
+
+  @override
+  State<PeoplePage> createState() => _PeoplePageState();
+}
+
+class _PeoplePageState extends State<PeoplePage> {
+  final _personNameController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeChangeProvider = Provider.of<TheThemeProvider>(context);
+
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.personSelector),
+          centerTitle: true),
+      body: ValueListenableBuilder(
+          valueListenable: Hive.box(peopleBox).listenable(),
+          builder: (context, box, _) {
+            if (box.isEmpty) {
+              return Center(
+                  child: Text(AppLocalizations.of(context)!.noPeople));
+            }
+
+            return ListView.builder(
+                itemCount: box.values.length,
+                itemBuilder: (context, index) {
+                  var person = box.getAt(index);
+                  // debugPrint("person: $person");
+                  return Slidable(
+                    key: const ValueKey(0),
+                    enabled: person != 'ME',
+                    startActionPane: ActionPane(
+                      motion: const ScrollMotion(),
+                      children: [
+                        SlidableAction(
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onError,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.error,
+                            label: AppLocalizations.of(context)!.delete,
+                            icon: Icons.delete_outline_outlined,
+                            onPressed: (context) async {
+                              showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return Directionality(
+                                      textDirection:
+                                          themeChangeProvider.language == 'ar'
+                                              ? TextDirection.rtl
+                                              : TextDirection.ltr,
+                                      child: AlertDialog(
+                                        icon:
+                                            Icon(Icons.delete_forever_outlined),
+                                        title: Text(AppLocalizations.of(
+                                                context)!
+                                            .titleDeletePersonMessage(person)),
+                                        content: Text(
+                                          AppLocalizations.of(context)!
+                                              .contentDeletePersonMessage,
+                                          style: TextStyle(fontSize: 20),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                              },
+                                              child: Text(
+                                                  AppLocalizations.of(context)!
+                                                      .cancel)),
+                                          ElevatedButton(
+                                              onPressed: () async {
+                                                await box.deleteAt(index);
+                                                final myBox =
+                                                    await Hive.box<Prayer>(
+                                                        boxName);
+                                                final personName =
+                                                    themeChangeProvider
+                                                        .personName;
+
+                                                // 1. Query and delete (recommended):
+                                                await myBox.deleteAll(myBox.keys
+                                                    .where((key) =>
+                                                        myBox
+                                                            .get(key)
+                                                            ?.whichPerson ==
+                                                        personName)
+                                                    .toList());
+
+                                                themeChangeProvider.personName =
+                                                    'ME';
+                                                Navigator.pop(context);
+                                              },
+                                              child: Text(
+                                                  AppLocalizations.of(context)!
+                                                      .delete)),
+                                        ],
+                                      ),
+                                    );
+                                  });
+                            }),
+                      ],
+                    ),
+                    child: RadioListTile(
+                        title: Text(
+                            person == "ME" &&
+                                    themeChangeProvider.language == 'ar'
+                                ? 'نفسي'
+                                : person,
+                            style: TextStyle(fontSize: 24)),
+                        value: person,
+                        groupValue: themeChangeProvider.personName,
+                        onChanged: (newValue) {
+                          setState(() {
+                            themeChangeProvider.personName = newValue;
+                          });
+                        }),
+                  );
+                });
+          }),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.person_add_alt),
+        onPressed: () {
+          _personNameController.text = "";
+          showDialog(
+              context: context,
+              builder: (context) {
+                return Directionality(
+                  textDirection: themeChangeProvider.language == 'ar'
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
+                  child: AlertDialog(
+                    title: Text(AppLocalizations.of(context)!.newPersonTitle),
+                    content: TextField(
+                      decoration: InputDecoration(
+                          label: Text(AppLocalizations.of(context)!.personName),
+                          border: OutlineInputBorder()),
+                      controller: _personNameController,
+                    ),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(AppLocalizations.of(context)!.cancel)),
+                      ElevatedButton(
+                          onPressed: () async {
+                            if (Hive.box(peopleBox)
+                                .values
+                                .contains(_personNameController.text.trim())) {
+                              showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return Directionality(
+                                      textDirection:
+                                          themeChangeProvider.language == 'ar'
+                                              ? TextDirection.rtl
+                                              : TextDirection.ltr,
+                                      child: AlertDialog(
+                                        title: Text(
+                                            AppLocalizations.of(context)!
+                                                .errorAddingPersonTitle),
+                                        content: Text(
+                                            AppLocalizations.of(context)!
+                                                .errorAddingPersonMessage),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: Text(
+                                                  AppLocalizations.of(context)!
+                                                      .ok))
+                                        ],
+                                      ),
+                                    );
+                                  });
+                            } else {
+                              await Hive.box(peopleBox)
+                                  .add(_personNameController.text.trim());
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: Text(AppLocalizations.of(context)!.add))
+                    ],
+                  ),
+                );
+              });
+        },
+      ),
+    );
   }
 }
 
@@ -160,11 +381,45 @@ class _MyHomePageState extends State<MyHomePage> {
     return isSelected;
   }
 
+  List<bool> isSelectedLanguage = [];
+  List<bool> getIsSelectedLanguage(TheThemeProvider languageProvider) {
+    isSelectedLanguage = [];
+    List<String> languages = ['ar', 'en'];
+    for (String language in languages) {
+      isSelectedLanguage
+          .add(languageProvider.language == language ? true : false);
+    }
+    return isSelectedLanguage;
+  }
+
+  String getPrayerName(String prayerName, BuildContext context) {
+    switch (prayerName) {
+      case 'الصبح':
+        return AppLocalizations.of(context)!.morning;
+
+      case 'الظهر':
+        return AppLocalizations.of(context)!.noon;
+
+      case 'العصر':
+        return AppLocalizations.of(context)!.afternoon;
+
+      case 'المغرب':
+        return AppLocalizations.of(context)!.sunset;
+
+      case 'العشاء':
+        return AppLocalizations.of(context)!.night;
+
+      default:
+        return prayerName;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeChangeProvider = Provider.of<TheThemeProvider>(context);
     final colorChangeProvider = Provider.of<ThemeColorProvider>(context);
     isSelected = getIsSelected(colorChangeProvider);
+    isSelectedLanguage = getIsSelectedLanguage(themeChangeProvider);
 
     return DefaultTabController(
       length: 2,
@@ -174,16 +429,39 @@ class _MyHomePageState extends State<MyHomePage> {
             bottom: TabBar(
               tabs: [
                 Tab(
-                    child: Text("الصلوات",
+                    child: Text(AppLocalizations.of(context)!.prayers,
                         style:
                             TextStyle(fontSize: themeChangeProvider.fontSize))),
                 Tab(
-                    child: Text("الصيام",
+                    child: Text(AppLocalizations.of(context)!.fasting,
                         style:
                             TextStyle(fontSize: themeChangeProvider.fontSize))),
               ],
             ),
             actions: [
+              Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      themeChangeProvider.personName == "ME" &&
+                              themeChangeProvider.language == 'ar'
+                          ? "نفسي"
+                          : themeChangeProvider.personName,
+                      style: TextStyle(
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer),
+                    ),
+                  ),
+                  color: Theme.of(context).colorScheme.primaryContainer),
+              IconButton(
+                  onPressed: () async {
+                    if (await Hive.box(peopleBox).values.contains('ME') ==
+                        false) {
+                      await Hive.box(peopleBox).add('ME');
+                    }
+                    Navigator.pushNamed(context, "/people");
+                  },
+                  icon: Icon(Icons.people_alt_outlined)),
               IconButton(
                   onPressed: () => Navigator.pushNamed(context, "/settings"),
                   icon: const Icon(Icons.settings_outlined))
@@ -192,12 +470,17 @@ class _MyHomePageState extends State<MyHomePage> {
                 icon: const Icon(Icons.color_lens_outlined),
                 onPressed: () {
                   showModalBottomSheet(
+                      isScrollControlled: true,
                       context: context,
                       builder: (context) {
                         return Directionality(
-                          textDirection: TextDirection.rtl,
+                          textDirection: themeChangeProvider.language == 'ar'
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
                           child: Scaffold(
                             appBar: AppBar(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.background,
                                 leading: IconButton(
                                     onPressed: () {
                                       Navigator.pop(context);
@@ -205,110 +488,182 @@ class _MyHomePageState extends State<MyHomePage> {
                                     icon: const Icon(Icons.close)),
                                 centerTitle: true,
                                 title: Text(
-                                  "المظهر",
+                                  AppLocalizations.of(context)!.appearance,
                                   style: TextStyle(
                                       fontSize:
                                           themeChangeProvider.fontSize + 5),
                                 )),
-                            body: Column(children: [
-                              SwitchListTile(
-                                  title: Text("الوضع الداكن",
-                                      style: TextStyle(
-                                          fontSize:
-                                              themeChangeProvider.fontSize)),
-                                  value: themeChangeProvider.darkTheme,
-                                  onChanged: (bool value) {
-                                    themeChangeProvider.darkTheme = value;
-                                  }),
-                              const SizedBox(height: 10),
-                              Text(
-                                "السمات",
-                                style: TextStyle(
-                                    fontSize: themeChangeProvider.fontSize),
-                                textAlign: TextAlign.end,
-                              ),
-                              Center(
-                                child: ToggleButtons(
-                                  selectedBorderColor:
-                                      Theme.of(context).colorScheme.primary,
-                                  borderWidth: 4,
-                                  isSelected: isSelected,
-                                  onPressed: (int index) {
-                                    setState(() {
-                                      for (int buttonIndex = 0;
-                                          buttonIndex < isSelected.length;
-                                          buttonIndex++) {
-                                        if (buttonIndex == index) {
-                                          isSelected[buttonIndex] = true;
-                                          colorChangeProvider.colorTheme =
-                                              buttonIndex;
-                                        } else {
-                                          isSelected[buttonIndex] = false;
-                                        }
-                                      }
-                                    });
-                                  },
-                                  children: <Widget>[
-                                    themeButton(
-                                        themeChange: themeChangeProvider,
-                                        lightColorScheme:
-                                            purpleLightColorScheme,
-                                        darkColorScheme: purpleDarkColorScheme),
-                                    themeButton(
-                                        themeChange: themeChangeProvider,
-                                        lightColorScheme: baigeLightColorScheme,
-                                        darkColorScheme: baigeDarkColorScheme),
-                                    themeButton(
-                                        themeChange: themeChangeProvider,
-                                        lightColorScheme: redLightColorScheme,
-                                        darkColorScheme: redDarkColorScheme),
-                                    themeButton(
-                                        themeChange: themeChangeProvider,
-                                        lightColorScheme: blueLightColorScheme,
-                                        darkColorScheme: blueDarkColorScheme),
-                                    themeButton(
-                                        themeChange: themeChangeProvider,
-                                        lightColorScheme: greyLightColorScheme,
-                                        darkColorScheme: greyDarkColorScheme),
-                                    themeButton(
-                                        themeChange: themeChangeProvider,
-                                        lightColorScheme: greenLightColorScheme,
-                                        darkColorScheme: greenDarkColorScheme),
-                                    const Icon(Icons.phone_android),
-                                  ],
+                            body: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: ListView(shrinkWrap: true, children: [
+                                SwitchListTile(
+                                    title: Text(
+                                        AppLocalizations.of(context)!.darkMode,
+                                        style: TextStyle(
+                                            fontSize:
+                                                themeChangeProvider.fontSize)),
+                                    value: themeChangeProvider.darkTheme,
+                                    onChanged: (bool value) {
+                                      themeChangeProvider.darkTheme = value;
+                                    }),
+                                const SizedBox(height: 10),
+                                Text(
+                                  AppLocalizations.of(context)!.themes,
+                                  style: TextStyle(
+                                      fontSize: themeChangeProvider.fontSize),
+                                  textAlign:
+                                      themeChangeProvider.language == 'ar'
+                                          ? TextAlign.right
+                                          : TextAlign.left,
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                "حجم الخط",
-                                style: TextStyle(
-                                    fontSize: themeChangeProvider.fontSize),
-                                textAlign: TextAlign.end,
-                              ),
-                              Center(
-                                child: Slider(
-                                  value: themeChangeProvider.fontSize,
-                                  max: 36,
-                                  min: 20,
-                                  divisions: 7,
-                                  label: themeChangeProvider.fontSize
-                                      .round()
-                                      .toString(),
-                                  onChanged: (double value) {
-                                    setState(() {
-                                      themeChangeProvider.fontSize = value;
-                                    });
-                                  },
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Center(
+                                    child: ToggleButtons(
+                                      selectedBorderColor:
+                                          Theme.of(context).colorScheme.primary,
+                                      borderWidth: 3,
+                                      isSelected: isSelected,
+                                      onPressed: (int index) {
+                                        setState(() {
+                                          for (int buttonIndex = 0;
+                                              buttonIndex < isSelected.length;
+                                              buttonIndex++) {
+                                            if (buttonIndex == index) {
+                                              isSelected[buttonIndex] = true;
+                                              colorChangeProvider.colorTheme =
+                                                  buttonIndex;
+                                            } else {
+                                              isSelected[buttonIndex] = false;
+                                            }
+                                          }
+                                        });
+                                      },
+                                      children: <Widget>[
+                                        themeButton(
+                                            themeChange: themeChangeProvider,
+                                            lightColorScheme:
+                                                purpleLightColorScheme,
+                                            darkColorScheme:
+                                                purpleDarkColorScheme),
+                                        themeButton(
+                                            themeChange: themeChangeProvider,
+                                            lightColorScheme:
+                                                baigeLightColorScheme,
+                                            darkColorScheme:
+                                                baigeDarkColorScheme),
+                                        themeButton(
+                                            themeChange: themeChangeProvider,
+                                            lightColorScheme:
+                                                redLightColorScheme,
+                                            darkColorScheme:
+                                                redDarkColorScheme),
+                                        themeButton(
+                                            themeChange: themeChangeProvider,
+                                            lightColorScheme:
+                                                blueLightColorScheme,
+                                            darkColorScheme:
+                                                blueDarkColorScheme),
+                                        themeButton(
+                                            themeChange: themeChangeProvider,
+                                            lightColorScheme:
+                                                greyLightColorScheme,
+                                            darkColorScheme:
+                                                greyDarkColorScheme),
+                                        themeButton(
+                                            themeChange: themeChangeProvider,
+                                            lightColorScheme:
+                                                greenLightColorScheme,
+                                            darkColorScheme:
+                                                greenDarkColorScheme),
+                                        const Icon(Icons.phone_android),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ]),
+                                const SizedBox(height: 10),
+                                Text(
+                                  AppLocalizations.of(context)!.fontSize,
+                                  style: TextStyle(
+                                      fontSize: themeChangeProvider.fontSize),
+                                  textAlign:
+                                      themeChangeProvider.language == 'ar'
+                                          ? TextAlign.right
+                                          : TextAlign.left,
+                                ),
+                                Center(
+                                  child: Slider(
+                                    value: themeChangeProvider.fontSize,
+                                    max: 36,
+                                    min: 20,
+                                    divisions: 7,
+                                    label: themeChangeProvider.fontSize
+                                        .round()
+                                        .toString(),
+                                    onChanged: (double value) {
+                                      setState(() {
+                                        themeChangeProvider.fontSize = value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  AppLocalizations.of(context)!.language,
+                                  style: TextStyle(
+                                      fontSize: themeChangeProvider.fontSize),
+                                  textAlign:
+                                      themeChangeProvider.language == 'ar'
+                                          ? TextAlign.right
+                                          : TextAlign.left,
+                                ),
+                                SafeArea(
+                                  child: Center(
+                                    child: Directionality(
+                                      textDirection: TextDirection.rtl,
+                                      child: ToggleButtons(
+                                        selectedBorderColor: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        borderWidth: 3,
+                                        isSelected: isSelectedLanguage,
+                                        onPressed: (int index) {
+                                          setState(() {
+                                            for (int buttonIndex = 0;
+                                                buttonIndex <
+                                                    isSelectedLanguage.length;
+                                                buttonIndex++) {
+                                              if (buttonIndex == index) {
+                                                isSelectedLanguage[
+                                                    buttonIndex] = true;
+                                                themeChangeProvider.language =
+                                                    buttonIndex == 0
+                                                        ? 'ar'
+                                                        : 'en';
+                                              } else {
+                                                isSelectedLanguage[
+                                                    buttonIndex] = false;
+                                              }
+                                            }
+                                          });
+                                        },
+                                        children: ['ع', 'E']
+                                            .map((language) => Text(language,
+                                                style: TextStyle(fontSize: 20)))
+                                            .toList(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ]),
+                            ),
                           ),
                         );
                       });
                 }),
             centerTitle: true,
             elevation: 0,
-            title: Text("عداد القضاء",
+            title: Text(AppLocalizations.of(context)!.title,
                 style: TextStyle(
                     fontFamily: "Lateef",
                     fontSize: themeChangeProvider.fontSize + 5))),
@@ -317,7 +672,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ValueListenableBuilder<Box<Prayer>>(
                 valueListenable: Hive.box<Prayer>(boxName).listenable(),
                 builder: (context, Box<Prayer> box, widget) {
-                  if (box.isEmpty) {
+                  if (box.values
+                      .where((element) =>
+                          element.whichPerson == themeChangeProvider.personName)
+                      .isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -370,9 +728,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           // const Image(image: AssetImage('images/kaaba_3d.png')),
                           Text(
-                            "عداد قضاء الصلوات",
+                            AppLocalizations.of(context)!.prayersTitle,
                             style: TextStyle(
-                                fontSize: themeChangeProvider.fontSize + 20,
+                                fontSize: themeChangeProvider.fontSize + 15,
                                 fontFamily: "Lateef"),
                           ),
                           const SizedBox(
@@ -383,7 +741,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Navigator.pushNamed(context, "/settings");
                               },
                               child: Text(
-                                "إعدادات",
+                                AppLocalizations.of(context)!.settingsBtn,
                                 style: TextStyle(
                                     fontSize: themeChangeProvider.fontSize + 5),
                               ))
@@ -393,13 +751,23 @@ class _MyHomePageState extends State<MyHomePage> {
                   } else {
                     return Column(
                       children: [
+                        // Text("عدد الايام المتبقية   "),
                         Expanded(
                           child: ListView.builder(
                             physics: const NeverScrollableScrollPhysics(),
                             shrinkWrap: true,
-                            itemCount: box.values.length,
+                            itemCount: box.values
+                                .where((prayer) =>
+                                    prayer.whichPerson ==
+                                    themeChangeProvider.personName)
+                                .length,
                             itemBuilder: (context, i) {
-                              var prayer = box.getAt(i)!;
+                              Prayer? prayer = box.values
+                                  .where((element) =>
+                                      element.whichPerson ==
+                                      themeChangeProvider.personName)
+                                  .toList()[i];
+
                               return SizedBox(
                                 height: MediaQuery.of(context).size.height / 7,
                                 child: Row(
@@ -421,10 +789,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                       SizedBox(
                                         width: 100,
                                         child: Text(
-                                          prayer.name,
+                                          getPrayerName(prayer.name, context),
                                           textAlign: TextAlign.center,
                                           style: const TextStyle(
-                                              fontSize: 25,
+                                              fontSize: 20,
                                               fontWeight: FontWeight.bold),
                                         ),
                                       ),
@@ -437,7 +805,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                                           .colorScheme
                                                           .secondary),
                                               child: Text(
-                                                "قضيت",
+                                                AppLocalizations.of(context)!
+                                                    .doneBtn,
                                                 style: TextStyle(
                                                     fontSize:
                                                         themeChangeProvider
@@ -457,7 +826,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                       CircleAvatar(
                                           maxRadius: 45,
                                           child: prayer.finished == prayer.total
-                                              ? Text("تقبل الله")
+                                              ? Text(
+                                                  AppLocalizations.of(context)!
+                                                      .finishMessage,
+                                                  textAlign: TextAlign.center,
+                                                )
                                               : Text(
                                                   "${prayer.finished}/${prayer.total}",
                                                   style: const TextStyle(
@@ -478,7 +851,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: Center(
                                 child: Padding(
                               padding: const EdgeInsets.only(bottom: 20),
-                              child: Text("تقبل الله أعمالكم",
+                              child: Text(
+                                  AppLocalizations.of(context)!.finishMessage2,
                                   style: TextStyle(
                                       fontSize: 30, fontFamily: "Lateef")),
                             ))),
@@ -489,7 +863,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ValueListenableBuilder<Box<Prayer>>(
                 valueListenable: Hive.box<Prayer>(boxName2).listenable(),
                 builder: (context, Box<Prayer> box, widget) {
-                  if (box.isEmpty) {
+                  if (box.values
+                      .where((element) =>
+                          element.whichPerson == themeChangeProvider.personName)
+                      .isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -531,9 +908,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           // Image(image: AssetImage('images/moon_3d.png')),
                           Text(
-                            "عداد قضاء الصيام",
+                            AppLocalizations.of(context)!.fastingTitle,
                             style: TextStyle(
-                                fontSize: themeChangeProvider.fontSize + 20,
+                                fontSize: themeChangeProvider.fontSize + 15,
                                 fontFamily: "Lateef"),
                           ),
                           const SizedBox(
@@ -544,7 +921,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Navigator.pushNamed(context, "/settings");
                               },
                               child: Text(
-                                "إعدادات",
+                                AppLocalizations.of(context)!.settingsBtn,
                                 style: TextStyle(
                                     fontSize: themeChangeProvider.fontSize + 5),
                               ))
@@ -558,7 +935,11 @@ class _MyHomePageState extends State<MyHomePage> {
                           child: ListView.builder(
                             physics: const NeverScrollableScrollPhysics(),
                             shrinkWrap: true,
-                            itemCount: box.values.length,
+                            itemCount: box.values
+                                .where((prayer) =>
+                                    prayer.whichPerson ==
+                                    themeChangeProvider.personName)
+                                .length,
                             itemBuilder: (context, i) {
                               var prayer = box.getAt(i)!;
                               return SizedBox(
@@ -586,10 +967,15 @@ class _MyHomePageState extends State<MyHomePage> {
                                       SizedBox(
                                         width: 100,
                                         child: Text(
-                                          prayer.name,
+                                          getFastingTypeName(
+                                              prayer.name, context),
                                           textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                              fontSize: 25,
+                                          style: TextStyle(
+                                              fontSize: themeChangeProvider
+                                                          .language ==
+                                                      'ar'
+                                                  ? 25
+                                                  : 18,
                                               fontWeight: FontWeight.bold),
                                         ),
                                       ),
@@ -602,7 +988,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                                           .colorScheme
                                                           .secondary),
                                               child: Text(
-                                                "قضيت",
+                                                AppLocalizations.of(context)!
+                                                    .doneBtn,
                                                 style: TextStyle(
                                                     fontSize:
                                                         themeChangeProvider
@@ -614,14 +1001,17 @@ class _MyHomePageState extends State<MyHomePage> {
                                               ),
                                               onPressed: () async {
                                                 if (prayer.name != 'قضاء') {
-                                                  if (box.get('قضاء') != null) {
-                                                    var is_fasting1_finished =
-                                                        await box
-                                                                .get('قضاء')!
-                                                                .finished ==
-                                                            box
-                                                                .get('قضاء')!
-                                                                .total;
+                                                  if (box.get(
+                                                          'قضاء:${themeChangeProvider.personName}') !=
+                                                      null) {
+                                                    var is_fasting1_finished = await box
+                                                            .get(
+                                                                'قضاء:${themeChangeProvider.personName}')!
+                                                            .finished ==
+                                                        box
+                                                            .get(
+                                                                'قضاء:${themeChangeProvider.personName}')!
+                                                            .total;
 
                                                     if (is_fasting1_finished) {
                                                       if (prayer.finished <
@@ -641,8 +1031,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                                           builder: (context) =>
                                                               Directionality(
                                                                 textDirection:
-                                                                    TextDirection
-                                                                        .rtl,
+                                                                    themeChangeProvider.language ==
+                                                                            'ar'
+                                                                        ? TextDirection
+                                                                            .rtl
+                                                                        : TextDirection
+                                                                            .ltr,
                                                                 child:
                                                                     AlertDialog(
                                                                   icon: Icon(Icons
@@ -658,8 +1052,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                                                   actions: [
                                                                     TextButton(
                                                                         child:
-                                                                            const Text(
-                                                                          "حسنا",
+                                                                            Text(
+                                                                          AppLocalizations.of(context)!
+                                                                              .ok,
                                                                           style:
                                                                               TextStyle(fontSize: 15),
                                                                         ),
@@ -696,7 +1091,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                       CircleAvatar(
                                           maxRadius: 45,
                                           child: prayer.finished == prayer.total
-                                              ? Text("تقبل الله")
+                                              ? Text(
+                                                  AppLocalizations.of(context)!
+                                                      .finishMessage)
                                               : Text(
                                                   "${prayer.finished}/${prayer.total}",
                                                   style: const TextStyle(
@@ -717,21 +1114,29 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: Center(
                                 child: Column(
                               children: [
-                                Card(
-                                  elevation: 0.2,
-                                  margin: EdgeInsets.only(left: 50, right: 50),
-                                  child: ListTile(
-                                    leading: Icon(Icons.info_outline),
-                                    title: Center(
-                                      child: Text(
-                                        "لا تصح نية قضاء الصوم إلا قبل الزوال.\n ولا يجوز الافطار فيه بعد الزوال.",
-                                        style: TextStyle(fontSize: 18),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                themeChangeProvider.language == "ar"
+                                    ? Card(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .background,
+                                        elevation: 3,
+                                        margin: EdgeInsets.only(
+                                            left: 10, right: 10),
+                                        child: ListTile(
+                                          leading: Icon(Icons.info_outline),
+                                          title: Center(
+                                            child: Text(
+                                              "لا تصح نية قضاء الصوم إلا قبل الزوال.\n ولا يجوز الافطار فيه بعد الزوال.",
+                                              style: TextStyle(fontSize: 15),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Container(),
                                 const SizedBox(height: 20),
-                                Text("تقبل الله أعمالكم",
+                                Text(
+                                    AppLocalizations.of(context)!
+                                        .finishMessage2,
                                     style: TextStyle(
                                         fontSize: 30, fontFamily: "Lateef")),
                               ],
@@ -746,33 +1151,46 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  int indexOfPrayer(prayerName) {
+    var prayers = ['الصبح', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
+    return prayers.indexOf(prayerName) + 1;
+  }
+
   Future<dynamic> confirmationAlert(BuildContext context, Prayer prayer,
       Box<Prayer> box, int i, bool addition) {
+    TheThemeProvider themeChangeProvider =
+        Provider.of<TheThemeProvider>(context, listen: false);
     return showDialog(
         context: context,
         builder: (context) => Directionality(
-              textDirection: TextDirection.rtl,
+              textDirection: themeChangeProvider.language == 'ar'
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
               child: AlertDialog(
                 icon: Icon(addition
                     ? Icons.done_outline_outlined
                     : Icons.cancel_outlined),
-                title: Text(addition ? "قضيت الصلاة ؟" : "لم تقضي الصلاة ؟"),
+                title: Text(addition
+                    ? AppLocalizations.of(context)!.titleDoneMessage
+                    : AppLocalizations.of(context)!.titleNotDoneMessage),
                 content: Text(
                   addition
-                      ? "هل انت متأكد من انك قضيت صلاة ${prayer.name} ؟"
-                      : "هل انت متأكد من انك لم تقضي صلاة ${prayer.name} ؟",
+                      ? AppLocalizations.of(context)!.contentDoneMessage(
+                          getPrayerName(prayer.name, context))
+                      : AppLocalizations.of(context)!.contentNotDoneMessage(
+                          getPrayerName(prayer.name, context)),
                   style: const TextStyle(fontSize: 20),
                 ),
                 actions: [
                   TextButton(
-                      child: const Text(
-                        "لا",
+                      child: Text(
+                        AppLocalizations.of(context)!.no,
                         style: TextStyle(fontSize: 15),
                       ),
                       onPressed: () => Navigator.pop(context)),
                   TextButton(
-                      child: const Text(
-                        "نعم",
+                      child: Text(
+                        AppLocalizations.of(context)!.yes,
                         style: TextStyle(fontSize: 15),
                       ),
                       onPressed: () async {
@@ -785,41 +1203,67 @@ class _MyHomePageState extends State<MyHomePage> {
                         }
 
                         await box
-                            .putAt(i, prayer)
+                            .put(
+                                '${indexOfPrayer(prayer.name)}-${prayer.name}:${themeChangeProvider.personName}',
+                                prayer)
                             .then((e) => Navigator.pop(context));
+                        debugPrint(
+                            '${indexOfPrayer(prayer.name)}-${prayer.name}:${themeChangeProvider.personName}');
                       })
                 ],
               ),
             ));
   }
 
+  String getFastingTypeName(type, BuildContext context) {
+    switch (type) {
+      case 'قضاء':
+        return AppLocalizations.of(context)!.alqada;
+      case 'نذر':
+        return AppLocalizations.of(context)!.alnadhar;
+      case 'كفارة':
+        return AppLocalizations.of(context)!.alkafaara;
+      default:
+        return type;
+    }
+  }
+
   Future<dynamic> fastingConfirmationAlert(BuildContext context, Prayer prayer,
       Box<Prayer> box, int i, bool addition) {
+    TheThemeProvider themeChangeProvider =
+        Provider.of<TheThemeProvider>(context, listen: false);
     return showDialog(
         context: context,
         builder: (context) => Directionality(
-              textDirection: TextDirection.rtl,
+              textDirection: themeChangeProvider.language == 'ar'
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
               child: AlertDialog(
                 icon: Icon(addition
                     ? Icons.done_outline_outlined
                     : Icons.cancel_outlined),
-                title: Text(addition ? "قضيت الصيام ؟" : "لم تقضي الصيام ؟"),
+                title: Text(addition
+                    ? AppLocalizations.of(context)!.titleDoneMessageFasting
+                    : AppLocalizations.of(context)!.titleNotDoneMessageFasting),
                 content: Text(
                   addition
-                      ? "هل انت متأكد من انك قضيت صيام ${prayer.name} ؟"
-                      : "هل انت متأكد من انك لم تقضي صيام ${prayer.name} ؟",
+                      ? AppLocalizations.of(context)!.contentDoneMessageFasting(
+                          getFastingTypeName(prayer.name, context))
+                      : AppLocalizations.of(context)!
+                          .contentNotDoneMessageFasting(
+                              getFastingTypeName(prayer.name, context)),
                   style: const TextStyle(fontSize: 20),
                 ),
                 actions: [
                   TextButton(
-                      child: const Text(
-                        "لا",
+                      child: Text(
+                        AppLocalizations.of(context)!.no,
                         style: TextStyle(fontSize: 15),
                       ),
                       onPressed: () => Navigator.pop(context)),
                   TextButton(
-                      child: const Text(
-                        "نعم",
+                      child: Text(
+                        AppLocalizations.of(context)!.yes,
                         style: TextStyle(fontSize: 15),
                       ),
                       onPressed: () async {
@@ -832,7 +1276,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         }
 
                         await box
-                            .putAt(i, prayer)
+                            .put(
+                                '${prayer.name}:${themeChangeProvider.personName}',
+                                prayer)
                             .then((e) => Navigator.pop(context));
                       })
                 ],
@@ -900,53 +1346,109 @@ class _SettingsPageState extends State<SettingsPage> {
   final fastingBox = Hive.box<Prayer>(boxName2);
 
   final settings = Hive.box(settingsBox);
+  final peoplesBox = Hive.box(peopleBox);
 
-  @override
-  void initState() {
-    _daysController.text = settings.get('days') ?? "";
-    _monthsController.text = settings.get('months') ?? "";
-    _yearsController.text = settings.get('years') ?? "";
+  void filltheFields(TheThemeProvider provider) {
+    _daysController.text = provider.personName == 'ME'
+        ? settings.get('days') ?? ""
+        : settings.get('${provider.personName}:days') ?? "";
+    _monthsController.text = provider.personName == 'ME'
+        ? settings.get('months') ?? ""
+        : settings.get('${provider.personName}:months') ?? "";
+    _yearsController.text = provider.personName == 'ME'
+        ? settings.get('years') ?? ""
+        : settings.get('${provider.personName}:years') ?? "";
 
-    _fastingDays1Controller.text = settings.get('fastingDays') ?? "";
-    _fastingMonths1Controller.text = settings.get('fastingMonths') ?? "";
-    _fastingDays2Controller.text = settings.get('fastingDays2') ?? "";
-    _fastingMonths2Controller.text = settings.get('fastingMonths2') ?? "";
-    _fastingDays3Controller.text = settings.get('fastingDays3') ?? "";
-    _fastingMonths3Controller.text = settings.get('fastingMonths3') ?? "";
+    _fastingDays1Controller.text = provider.personName == 'ME'
+        ? settings.get('fastingDays') ?? ""
+        : settings.get('${provider.personName}:fastingDays') ?? "";
+    _fastingMonths1Controller.text = provider.personName == 'ME'
+        ? settings.get('fastingMonths') ?? ""
+        : settings.get('${provider.personName}:fastingMonths') ?? "";
+    _fastingDays2Controller.text = provider.personName == 'ME'
+        ? settings.get('fastingDays2') ?? ""
+        : settings.get('${provider.personName}:fastingDays2') ?? "";
+    _fastingMonths2Controller.text = provider.personName == 'ME'
+        ? settings.get('fastingMonths2') ?? ""
+        : settings.get('${provider.personName}:fastingMonths2') ?? "";
+    _fastingDays3Controller.text = provider.personName == 'ME'
+        ? settings.get('fastingDays3') ?? ""
+        : settings.get('${provider.personName}:fastingDays3') ?? "";
+    _fastingMonths3Controller.text = provider.personName == 'ME'
+        ? settings.get('fastingMonths3') ?? ""
+        : settings.get('${provider.personName}:fastingMonths3') ?? "";
+  }
 
-    super.initState();
+  Future<void> deleteAllItemsForPerson(
+      TheThemeProvider themeChangeProvider, boxName) async {
+    final box = await Hive.box<Prayer>(boxName);
+    final personName = themeChangeProvider.personName;
+
+    // 1. Query and delete (recommended):
+    await box.deleteAll(box.keys
+        .where((key) => box.get(key)?.whichPerson == personName)
+        .toList());
+
+    debugPrint("deleted sccussfully");
+
+    // 2. Alternatively, iterate and delete (less efficient for large datasets):
+    // for (var key in box.keys) {
+    //   final item = box.get(key);
+    //   if (item?.personName == personName) {
+    //     await box.delete(key);
+    //   }
+    // }
   }
 
   @override
   Widget build(BuildContext context) {
     final themeChangeProvider = Provider.of<TheThemeProvider>(context);
+    filltheFields(themeChangeProvider);
     return Scaffold(
       appBar: AppBar(
+          backgroundColor: Theme.of(context).colorScheme.background,
           centerTitle: true,
           actions: [
+            Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    themeChangeProvider.personName == "ME" &&
+                            themeChangeProvider.language == 'ar'
+                        ? "نفسي"
+                        : themeChangeProvider.personName,
+                    style: TextStyle(
+                        color:
+                            Theme.of(context).colorScheme.onPrimaryContainer),
+                  ),
+                ),
+                color: Theme.of(context).colorScheme.primaryContainer),
             IconButton(
                 onPressed: () {
                   showDialog(
                       context: context,
                       builder: (context) => Directionality(
-                            textDirection: TextDirection.rtl,
+                            textDirection: themeChangeProvider.language == 'ar'
+                                ? TextDirection.rtl
+                                : TextDirection.ltr,
                             child: AlertDialog(
                               icon: Icon(Icons.warning_outlined),
-                              title: Text("هل تريد تصفير العدادات؟"),
+                              title: Text(
+                                  AppLocalizations.of(context)!.clearTitle),
                               content: Text(
-                                "هل انت متأكد انك تبي تصفر العدادات للصلاة والصيام؟",
+                                AppLocalizations.of(context)!.clearContent,
                                 style: const TextStyle(fontSize: 20),
                               ),
                               actions: [
                                 TextButton(
-                                    child: const Text(
-                                      "لا",
+                                    child: Text(
+                                      AppLocalizations.of(context)!.no,
                                       style: TextStyle(fontSize: 15),
                                     ),
                                     onPressed: () => Navigator.pop(context)),
                                 TextButton(
-                                    child: const Text(
-                                      "نعم",
+                                    child: Text(
+                                      AppLocalizations.of(context)!.yes,
                                       style: TextStyle(fontSize: 15),
                                     ),
                                     onPressed: () async {
@@ -961,7 +1463,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                       _fastingDays3Controller.text = "";
                                       _fastingMonths3Controller.text = "";
-
                                       settings.putAll({
                                         'days': '',
                                         'months': '',
@@ -973,7 +1474,29 @@ class _SettingsPageState extends State<SettingsPage> {
                                         'fastingDays3': '',
                                         'fastingMonths3': '',
                                       });
+                                      settings.putAll({
+                                        '${themeChangeProvider.personName}:days':
+                                            '',
+                                        '${themeChangeProvider.personName}:months':
+                                            '',
+                                        '${themeChangeProvider.personName}:years':
+                                            '',
+                                        '${themeChangeProvider.personName}:fastingDays':
+                                            '',
+                                        '${themeChangeProvider.personName}:fastingMonths':
+                                            '',
+                                        '${themeChangeProvider.personName}:fastingDays2':
+                                            '',
+                                        '${themeChangeProvider.personName}:fastingMonths2':
+                                            '',
+                                        '${themeChangeProvider.personName}:fastingDays3':
+                                            '',
+                                        '${themeChangeProvider.personName}:fastingMonths3':
+                                            '',
+                                      });
+
                                       await fastingBox.clear();
+                                      await peoplesBox.clear();
                                       await box
                                           .clear()
                                           .then((e) => Navigator.pop(context));
@@ -985,7 +1508,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: Icon(Icons.delete_forever_outlined))
           ],
           title: Text(
-            "الإعدادات",
+            AppLocalizations.of(context)!.settings,
             style: TextStyle(
                 fontFamily: "Lateef",
                 fontSize: themeChangeProvider.fontSize + 5),
@@ -998,11 +1521,14 @@ class _SettingsPageState extends State<SettingsPage> {
             return ListView(
                 // crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("الصلوات",
+                  Text(AppLocalizations.of(context)!.prayers,
                       style:
                           TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   TextField(
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
                       style: TextStyle(fontSize: 20),
                       controller: _daysController,
                       keyboardType: TextInputType.number,
@@ -1014,13 +1540,16 @@ class _SettingsPageState extends State<SettingsPage> {
                             },
                           ),
                           label: Text(
-                            "عدد الأيام",
+                            AppLocalizations.of(context)!.numberOfDays,
                             style: TextStyle(
                                 fontSize: themeChangeProvider.fontSize - 5),
                           ),
                           border: OutlineInputBorder())),
                   const SizedBox(height: 10),
                   TextField(
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
                       style: TextStyle(fontSize: 20),
                       controller: _monthsController,
                       keyboardType: TextInputType.number,
@@ -1032,13 +1561,16 @@ class _SettingsPageState extends State<SettingsPage> {
                             },
                           ),
                           label: Text(
-                            "عدد الشهور",
+                            AppLocalizations.of(context)!.numberOfMonths,
                             style: TextStyle(
                                 fontSize: themeChangeProvider.fontSize - 5),
                           ),
                           border: OutlineInputBorder())),
                   const SizedBox(height: 10),
                   TextField(
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
                       style: TextStyle(fontSize: 20),
                       controller: _yearsController,
                       keyboardType: TextInputType.number,
@@ -1050,7 +1582,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             },
                           ),
                           label: Text(
-                            "عدد السنين",
+                            AppLocalizations.of(context)!.numberOfYears,
                             style: TextStyle(
                                 fontSize: themeChangeProvider.fontSize - 5),
                           ),
@@ -1069,25 +1601,64 @@ class _SettingsPageState extends State<SettingsPage> {
                             : _yearsController.text);
                         int numberOfPrayers =
                             days + (months * 30) + (years * 345);
-                        settings.putAll({
-                          'days': _daysController.text,
-                          'months': _monthsController.text,
-                          'years': _yearsController.text
-                        });
-                        await Hive.box<Prayer>(boxName).clear();
+                        if (themeChangeProvider.personName == 'ME') {
+                          settings.putAll({
+                            'days': _daysController.text,
+                            'months': _monthsController.text,
+                            'years': _yearsController.text
+                          });
+                        } else {
+                          settings.putAll({
+                            '${themeChangeProvider.personName}:days':
+                                _daysController.text,
+                            '${themeChangeProvider.personName}:months':
+                                _monthsController.text,
+                            '${themeChangeProvider.personName}:years':
+                                _yearsController.text
+                          });
+                        }
+
+                        await deleteAllItemsForPerson(
+                            themeChangeProvider, boxName);
+
                         if (numberOfPrayers > 0) {
-                          await Hive.box<Prayer>(boxName).addAll([
-                            Prayer("الصبح", numberOfPrayers, 0),
-                            Prayer("الظهر", numberOfPrayers, 0),
-                            Prayer("العصر", numberOfPrayers, 0),
-                            Prayer("المغرب", numberOfPrayers, 0),
-                            Prayer("العشاء", numberOfPrayers, 0),
-                          ]).then((value) => ScaffoldMessenger.of(context)
+                          await Hive.box<Prayer>(boxName).putAll({
+                            "1-الصبح:${themeChangeProvider.personName}": Prayer(
+                                "الصبح",
+                                numberOfPrayers,
+                                0,
+                                themeChangeProvider.personName),
+                            "2-الظهر:${themeChangeProvider.personName}": Prayer(
+                                "الظهر",
+                                numberOfPrayers,
+                                0,
+                                themeChangeProvider.personName),
+                            "3-العصر:${themeChangeProvider.personName}": Prayer(
+                                "العصر",
+                                numberOfPrayers,
+                                0,
+                                themeChangeProvider.personName),
+                            "4-المغرب:${themeChangeProvider.personName}":
+                                Prayer("المغرب", numberOfPrayers, 0,
+                                    themeChangeProvider.personName),
+                            "5-العشاء:${themeChangeProvider.personName}":
+                                Prayer("العشاء", numberOfPrayers, 0,
+                                    themeChangeProvider.personName),
+                          }).then((value) => ScaffoldMessenger.of(context)
                               .showSnackBar(SnackBar(
                                   backgroundColor:
                                       Theme.of(context).colorScheme.secondary,
                                   content: Text(
-                                    "تمت إضافة العدادات للصلاة بنجاح",
+                                    AppLocalizations.of(context)!
+                                        .successSnackBarMessagePrayers(
+                                            themeChangeProvider.personName ==
+                                                        'ME' &&
+                                                    themeChangeProvider
+                                                            .language ==
+                                                        'ar'
+                                                ? 'نفسي'
+                                                : themeChangeProvider
+                                                    .personName),
                                     style: TextStyle(fontSize: 20),
                                   ))));
                         }
@@ -1096,22 +1667,27 @@ class _SettingsPageState extends State<SettingsPage> {
                         minimumSize: const Size.fromHeight(40),
                       ),
                       icon: const Icon(Icons.calculate),
-                      label: Text("حساب (الصلوات)",
+                      label: Text(
+                          "${AppLocalizations.of(context)!.calculateBtn} ${AppLocalizations.of(context)!.prayers}",
                           style: TextStyle(
                               fontSize: themeChangeProvider.fontSize - 8))),
                   const SizedBox(height: 40),
-                  const Text("الصيام",
+                  Text(AppLocalizations.of(context)!.fasting,
                       style:
                           TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 22),
                   ExpansionTile(
-                    title: Text("صيام القضاء",
+                    title: Text(
+                        AppLocalizations.of(context)!
+                            .fastingTypes(AppLocalizations.of(context)!.alqada),
                         style: TextStyle(
                             fontSize: themeChangeProvider.fontSize + 5)),
                     children: [
                       const SizedBox(height: 15),
                       TextField(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           style: TextStyle(fontSize: 20),
                           controller: _fastingDays1Controller,
                           keyboardType: TextInputType.number,
@@ -1123,13 +1699,16 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               label: Text(
-                                "عدد الأيام",
+                                AppLocalizations.of(context)!.numberOfDays,
                                 style: TextStyle(
                                     fontSize: themeChangeProvider.fontSize - 5),
                               ),
                               border: OutlineInputBorder())),
                       const SizedBox(height: 10),
                       TextField(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           style: TextStyle(fontSize: 20),
                           controller: _fastingMonths1Controller,
                           keyboardType: TextInputType.number,
@@ -1141,7 +1720,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               label: Text(
-                                "عدد الشهور",
+                                AppLocalizations.of(context)!.numberOfMonths,
                                 style: TextStyle(
                                     fontSize: themeChangeProvider.fontSize - 5),
                               ),
@@ -1160,21 +1739,46 @@ class _SettingsPageState extends State<SettingsPage> {
 
                             int numberOfFastingDays =
                                 fastingDays + (fastingMonths * 30);
-                            settings.putAll({
-                              'fastingDays': _fastingDays1Controller.text,
-                              'fastingMonths': _fastingMonths1Controller.text,
-                            });
+                            if (themeChangeProvider.personName == 'ME') {
+                              settings.putAll({
+                                'fastingDays': _fastingDays1Controller.text,
+                                'fastingMonths': _fastingMonths1Controller.text,
+                              });
+                            } else {
+                              settings.putAll({
+                                '${themeChangeProvider.personName}:fastingDays':
+                                    _fastingDays1Controller.text,
+                                '${themeChangeProvider.personName}:fastingMonths':
+                                    _fastingMonths1Controller.text,
+                              });
+                            }
+
                             if (numberOfFastingDays > 0) {
                               await Hive.box<Prayer>(boxName2)
-                                  .put('قضاء',
-                                      Prayer("قضاء", numberOfFastingDays, 0))
+                                  .put(
+                                      'قضاء:${themeChangeProvider.personName}',
+                                      Prayer("قضاء", numberOfFastingDays, 0,
+                                          themeChangeProvider.personName))
                                   .then((value) => ScaffoldMessenger.of(context)
                                       .showSnackBar(SnackBar(
                                           backgroundColor: Theme.of(context)
                                               .colorScheme
                                               .secondary,
                                           content: Text(
-                                            "تمت إضافة عداد صيام القضاء بنجاح",
+                                            AppLocalizations.of(context)!
+                                                .successSnackBarMessage(
+                                                    themeChangeProvider
+                                                                .personName ==
+                                                            'ME'
+                                                        ? 'نفسي'
+                                                        : themeChangeProvider
+                                                            .personName,
+                                                    AppLocalizations.of(
+                                                            context)!
+                                                        .fastingTypes(
+                                                            AppLocalizations.of(
+                                                                    context)!
+                                                                .alqada)),
                                             style: TextStyle(fontSize: 20),
                                           ))));
                             }
@@ -1183,18 +1787,25 @@ class _SettingsPageState extends State<SettingsPage> {
                             minimumSize: const Size.fromHeight(40),
                           ),
                           icon: const Icon(Icons.calculate),
-                          label: Text("حساب صيام (القضاء)",
+                          label: Text(
+                              AppLocalizations.of(context)!.calculateFastingBtn(
+                                  AppLocalizations.of(context)!.alqada),
                               style: TextStyle(
                                   fontSize: themeChangeProvider.fontSize - 8))),
                     ],
                   ),
                   ExpansionTile(
-                    title: Text("صيام النذر",
+                    title: Text(
+                        AppLocalizations.of(context)!.fastingTypes(
+                            AppLocalizations.of(context)!.alnadhar),
                         style: TextStyle(
                             fontSize: themeChangeProvider.fontSize + 5)),
                     children: [
                       const SizedBox(height: 15),
                       TextField(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           style: TextStyle(fontSize: 20),
                           controller: _fastingDays2Controller,
                           keyboardType: TextInputType.number,
@@ -1206,13 +1817,16 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               label: Text(
-                                "عدد الأيام",
+                                AppLocalizations.of(context)!.numberOfDays,
                                 style: TextStyle(
                                     fontSize: themeChangeProvider.fontSize - 5),
                               ),
                               border: OutlineInputBorder())),
                       const SizedBox(height: 10),
                       TextField(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           style: TextStyle(fontSize: 20),
                           controller: _fastingMonths2Controller,
                           keyboardType: TextInputType.number,
@@ -1224,7 +1838,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               label: Text(
-                                "عدد الشهور",
+                                AppLocalizations.of(context)!.numberOfMonths,
                                 style: TextStyle(
                                     fontSize: themeChangeProvider.fontSize - 5),
                               ),
@@ -1243,21 +1857,47 @@ class _SettingsPageState extends State<SettingsPage> {
 
                             int numberOfFastingDays2 =
                                 fastingDays2 + (fastingMonths2 * 30);
-                            settings.putAll({
-                              'fastingDays2': _fastingDays2Controller.text,
-                              'fastingMonths2': _fastingMonths2Controller.text,
-                            });
+                            if (themeChangeProvider.personName == 'ME') {
+                              settings.putAll({
+                                'fastingDays2': _fastingDays2Controller.text,
+                                'fastingMonths2':
+                                    _fastingMonths2Controller.text,
+                              });
+                            } else {
+                              settings.putAll({
+                                '${themeChangeProvider.personName}:fastingDays2':
+                                    _fastingDays2Controller.text,
+                                '${themeChangeProvider.personName}:fastingMonths2':
+                                    _fastingMonths2Controller.text,
+                              });
+                            }
+
                             if (numberOfFastingDays2 > 0) {
                               await Hive.box<Prayer>(boxName2)
-                                  .put('نذر',
-                                      Prayer("نذر", numberOfFastingDays2, 0))
+                                  .put(
+                                      'نذر:${themeChangeProvider.personName}',
+                                      Prayer("نذر", numberOfFastingDays2, 0,
+                                          themeChangeProvider.personName))
                                   .then((value) => ScaffoldMessenger.of(context)
                                       .showSnackBar(SnackBar(
                                           backgroundColor: Theme.of(context)
                                               .colorScheme
                                               .secondary,
                                           content: Text(
-                                            "تمت إضافة عداد صيام النذر بنجاح",
+                                            AppLocalizations.of(context)!
+                                                .successSnackBarMessage(
+                                                    themeChangeProvider
+                                                                .personName ==
+                                                            'ME'
+                                                        ? 'نفسي'
+                                                        : themeChangeProvider
+                                                            .personName,
+                                                    AppLocalizations.of(
+                                                            context)!
+                                                        .fastingTypes(
+                                                            AppLocalizations.of(
+                                                                    context)!
+                                                                .alnadhar)),
                                             style: TextStyle(fontSize: 20),
                                           ))));
                             }
@@ -1266,18 +1906,25 @@ class _SettingsPageState extends State<SettingsPage> {
                             minimumSize: const Size.fromHeight(40),
                           ),
                           icon: const Icon(Icons.calculate),
-                          label: Text("حساب صيام (النذر)",
+                          label: Text(
+                              AppLocalizations.of(context)!.calculateFastingBtn(
+                                  AppLocalizations.of(context)!.alnadhar),
                               style: TextStyle(
                                   fontSize: themeChangeProvider.fontSize - 8))),
                     ],
                   ),
                   ExpansionTile(
-                    title: Text("صيام الكفارة",
+                    title: Text(
+                        AppLocalizations.of(context)!.fastingTypes(
+                            AppLocalizations.of(context)!.alkafaara),
                         style: TextStyle(
                             fontSize: themeChangeProvider.fontSize + 5)),
                     children: [
                       const SizedBox(height: 15),
                       TextField(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           style: TextStyle(fontSize: 20),
                           controller: _fastingDays3Controller,
                           keyboardType: TextInputType.number,
@@ -1289,13 +1936,16 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               label: Text(
-                                "عدد الأيام",
+                                AppLocalizations.of(context)!.numberOfDays,
                                 style: TextStyle(
                                     fontSize: themeChangeProvider.fontSize - 5),
                               ),
                               border: OutlineInputBorder())),
                       const SizedBox(height: 10),
                       TextField(
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           style: TextStyle(fontSize: 20),
                           controller: _fastingMonths3Controller,
                           keyboardType: TextInputType.number,
@@ -1307,7 +1957,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               label: Text(
-                                "عدد الشهور",
+                                AppLocalizations.of(context)!.numberOfMonths,
                                 style: TextStyle(
                                     fontSize: themeChangeProvider.fontSize - 5),
                               ),
@@ -1326,21 +1976,47 @@ class _SettingsPageState extends State<SettingsPage> {
 
                             int numberOfFastingDays3 =
                                 fastingDays3 + (fastingMonths3 * 30);
-                            settings.putAll({
-                              'fastingDays3': _fastingDays3Controller.text,
-                              'fastingMonths3': _fastingMonths3Controller.text,
-                            });
+                            if (themeChangeProvider.personName == 'ME') {
+                              settings.putAll({
+                                'fastingDays3': _fastingDays3Controller.text,
+                                'fastingMonths3':
+                                    _fastingMonths3Controller.text,
+                              });
+                            } else {
+                              settings.putAll({
+                                '${themeChangeProvider.personName}:fastingDays3':
+                                    _fastingDays3Controller.text,
+                                '${themeChangeProvider.personName}:fastingMonths3':
+                                    _fastingMonths3Controller.text,
+                              });
+                            }
+
                             if (numberOfFastingDays3 > 0) {
                               await Hive.box<Prayer>(boxName2)
-                                  .put('كفارة',
-                                      Prayer("كفارة", numberOfFastingDays3, 0))
+                                  .put(
+                                      'كفارة:${themeChangeProvider.personName}',
+                                      Prayer("كفارة", numberOfFastingDays3, 0,
+                                          themeChangeProvider.personName))
                                   .then((value) => ScaffoldMessenger.of(context)
                                       .showSnackBar(SnackBar(
                                           backgroundColor: Theme.of(context)
                                               .colorScheme
                                               .secondary,
                                           content: Text(
-                                            "تمت إضافة عداد صيام الكفارة بنجاح",
+                                            AppLocalizations.of(context)!
+                                                .successSnackBarMessage(
+                                                    themeChangeProvider
+                                                                .personName ==
+                                                            'ME'
+                                                        ? 'نفسي'
+                                                        : themeChangeProvider
+                                                            .personName,
+                                                    AppLocalizations.of(
+                                                            context)!
+                                                        .fastingTypes(
+                                                            AppLocalizations.of(
+                                                                    context)!
+                                                                .alkafaara)),
                                             style: TextStyle(fontSize: 20),
                                           ))));
                             }
@@ -1349,7 +2025,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             minimumSize: const Size.fromHeight(40),
                           ),
                           icon: const Icon(Icons.calculate),
-                          label: Text("حساب صيام (الكفارة)",
+                          label: Text(
+                              AppLocalizations.of(context)!.calculateFastingBtn(
+                                  AppLocalizations.of(context)!.alkafaara),
                               style: TextStyle(
                                   fontSize: themeChangeProvider.fontSize - 8))),
                     ],

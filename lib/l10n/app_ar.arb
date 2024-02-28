@@ -1,0 +1,130 @@
+{
+    "title": "عداد القضاء",
+    "settings": "الإعدادات",
+    "appearance": "المظهر",
+    "fasting": "الصيام",
+    "prayers": "الصلوات",
+    "darkMode": "الوضع الداكن",
+    "themes": "السمات",
+    "fontSize": "حجم الخط",
+    "language": "اللغة",
+    "personSelector": "النيابة",
+    "prayersTitle": "عداد قضاء الصلوات",
+    "fastingTitle": "عداد قضاء الصيام",
+    "settingsBtn": "إعدادات",
+    "numberOfDays": "عدد الأيام",
+    "numberOfMonths": "عدد الشهور",
+    "numberOfYears": "عدد السنين",
+    "calculateBtn": "حساب",
+    "doneBtn": "قضيت",
+    "morning": "الفجر",
+    "noon": "الظهر",
+    "afternoon": "العصر",
+    "sunset": "المغرب",
+    "night": "العشاء",
+    "titleDoneMessage": "قضيت الصلاة؟",
+    "contentDoneMessage": "هل انت متأكد انك قضيت صلاة {prayer}؟",
+    "@contentDoneMessage":{
+      "placeholders": {
+        "prayer": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "titleNotDoneMessage": "لم تقضي الصلاة؟",
+    "contentNotDoneMessage": "هل انت متأكد انك لم تقضي صلاة {prayer}؟",
+    "@contentNotDoneMessage":{
+      "placeholders": {
+        "prayer": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "titleDoneMessageFasting": "قضيت الصيام؟",
+    "contentDoneMessageFasting": "هل انت متأكد انك قضيت صيام {fastingType}؟",
+    "@contentDoneMessageFasting":{
+      "placeholders": {
+        "fastingType": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "titleNotDoneMessageFasting": "لم تقضي الصيام؟",
+    "contentNotDoneMessageFasting": "هل انت متأكد انك لم تقضي صيام {fastingType}؟",
+    "@contentNotDoneMessageFasting":{
+      "placeholders": {
+        "fastingType": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "titleDeletePersonMessage": "حذف {person}؟",
+    "@titleDeletePersonMessage":{
+      "placeholders": {
+        "person": {
+          "type": "String"
+        
+        }
+      }
+    },
+    "contentDeletePersonMessage": "هل انت متأكد انك تريد حذف هذا الشخص؟",
+    "yes": "نعم",
+    "no": "لا",
+    "cancel": "إلغاء",
+    "add": "إضافة",
+    "ok": "حسنا",
+    "delete": "حذف",
+    "newPersonTitle": "إضافة شخص جديد",
+    "personName": "اسم الشخص",
+    "errorAddingPersonMessage": "لا يمكنك اضافة شخص بأسم موجود مسبقا",
+    "errorAddingPersonTitle": "لا يمكن",
+    "noPeople": "ليس هناك أسماء للاختيار من بينها.",
+    "alqada": "القضاء",
+    "alnadhar": "النذر",
+    "alkafaara": "الكفارة",
+    "finishMessage": "أحسنت",
+    "finishMessage2": "تقبل الله أعمالكم",
+    "fastingTypes": "صيام {fastingType}",
+    "@fastingTypes": {
+      "placeholders": {
+        "fastingType": {
+          "type": "String"
+        }
+      }
+    },
+    "calculateFastingBtn": "حساب صيام {fastingType}",
+    "@calculateFastingBtn": {
+      "placeholders": {
+        "fastingType": {
+          "type": "String"
+        }
+      }
+    },
+    "successSnackBarMessage": "تمت إضافة عداد {name} بنجاح لـ({person})",
+    "@successSnackBarMessage": {
+      "placeholders": {
+        "person": {
+          "type": "String"
+        },
+        "name": {
+          "type": "String"
+        }
+      }
+    },
+    "successSnackBarMessagePrayers": "تمت إضافة العدادات للصلاة بنجاح لـ({person})",
+    "@successSnackBarMessagePrayers": {
+      "placeholders": {
+        "person": {
+          "type": "String"
+        }
+      }
+    },
+    "clearTitle": "حذف كل شيء؟",
+    "clearContent": "هل أنت متأكد أنك تريد حذف كل شيء؟"
+
+   
+  }

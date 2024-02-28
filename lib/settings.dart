@@ -7,6 +7,8 @@ class TheThemePreference {
   // ignore: constant_identifier_names
   static const THEME_STATUS = "THEMESTATUS";
   static const FONT_SIZE = "FONTSIZE";
+  static const PERSONNAME = "PERSONNAME";
+  static const UILANGUAGE = "UILANGUAGE";
 
   setDarkTheme(bool value) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -26,6 +28,26 @@ class TheThemePreference {
   Future<double> getFontSize() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getDouble(FONT_SIZE) ?? 27;
+  }
+
+  setPersonName(String name) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString(PERSONNAME, name);
+  }
+
+  Future<String> getPersonName() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(PERSONNAME) ?? 'ME';
+  }
+
+  setUILanguage(String language) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString(UILANGUAGE, language);
+  }
+
+  Future<String> getUILanguage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(UILANGUAGE) ?? 'ar';
   }
 }
 
@@ -47,6 +69,24 @@ class TheThemeProvider with ChangeNotifier {
   set fontSize(double value) {
     _fontSize = value;
     preference.setFontSize(value);
+    notifyListeners();
+  }
+
+  String _personName = 'ME';
+  String get personName => _personName;
+
+  set personName(String name) {
+    _personName = name;
+    preference.setPersonName(name);
+    notifyListeners();
+  }
+
+  String _language = 'ar';
+  String get language => _language;
+
+  set language(String language) {
+    _language = language;
+    preference.setUILanguage(language);
     notifyListeners();
   }
 }

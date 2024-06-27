@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -469,9 +468,8 @@ class _MyHomePageState extends State<MyHomePage> {
             leading: IconButton(
                 icon: const Icon(Icons.color_lens_outlined),
                 onPressed: () {
-                  showModalBottomSheet(
-                      isScrollControlled: true,
-                      context: context,
+                  Navigator.push(
+                     context,MaterialPageRoute(
                       builder: (context) {
                         return Directionality(
                           textDirection: themeChangeProvider.language == 'ar'
@@ -659,7 +657,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                           ),
                         );
-                      });
+                      }));
                 }),
             centerTitle: true,
             elevation: 0,
